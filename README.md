@@ -58,6 +58,8 @@ Análisis automático que indica el algoritmo más rápido y el más estable tra
 
 # 🚀 Cómo Empezar (Instalación)
 
+Hay dos opciones teniendo solo la carpeta ejecutable dentro se encuentran el .exe y los dll necesarios para ejecutarse o sigues lo que especifica lo siguiente:
+
 ## Prerrequisitos
 
 - Visual Studio 2022 (o superior) con la carga de trabajo "Desarrollo de escritorio de .NET" instalada (para soporte de WPF).
