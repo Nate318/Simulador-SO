@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace SimuladorSO
 {
@@ -119,10 +120,9 @@ namespace SimuladorSO
         public Dictionary<int, int> L1Cache { get; set; } = new Dictionary<int, int>();
         public int L1CacheHits { get; set; } = 0;
 
-        // FEATURE REFINADO: Térmicas Reales y Ventiladores (Active Cooling)
         public double Temperature { get; set; } = 40.0;
         public bool IsThrottling { get; set; } = false;
-        public int FanSpeedRPM { get; set; } = 1500; // Ventilador base
+        public int FanSpeedRPM { get; set; } = 1500;
 
         public void Assign(Process p)
         {
@@ -525,9 +525,9 @@ namespace SimuladorSO
         public bool IsBooting { get; set; } = true;
         public int BootSequenceWait { get; set; } = 15;
 
-        public SimulationEngine(int cpus, int threads, bool isBenchmark = false)
+        public SimulationEngine(int cpus, int threads, int ramMb = 4096, bool isBenchmark = false)
         {
-            MemoryUnits.Add(new MMU(0, 4096, 0));
+            MemoryUnits.Add(new MMU(0, ramMb, 0));
 
             for (int i = 0; i < cpus; i++)
             {
@@ -638,7 +638,10 @@ namespace SimuladorSO
             }
             else
             {
-                if (AutoCreateProcesses && rnd.Next(1, 100) < 5) InjectManualProcess(rnd.Next(32, 256), rnd.Next(30, 150), rnd.Next(1, 10));
+                // Auto-Spawn ahora con mayor varianza aleatoria (32 a 512MB)
+                if (AutoCreateProcesses && rnd.Next(1, 100) < 5)
+                    InjectManualProcess(rnd.Next(32, 512), rnd.Next(50, 200), rnd.Next(1, 10));
+
                 AdmitNewProcesses();
             }
 
@@ -705,24 +708,21 @@ namespace SimuladorSO
                 {
                     Metrics.IdleCpuTicks++;
 
-                    // LÓGICA TÉRMICA CORREGIDA (Enfriamiento)
-                    cpu.FanSpeedRPM = Math.Max(1000, cpu.FanSpeedRPM - 50); // El ventilador se desacelera
+                    cpu.FanSpeedRPM = Math.Max(1000, cpu.FanSpeedRPM - 50);
                     double coolingRate = 0.01 * (cpu.FanSpeedRPM / 1000.0);
                     cpu.Temperature = Math.Max(35.0, cpu.Temperature - coolingRate);
 
-                    if (cpu.Temperature < 65.0) cpu.IsThrottling = false; // Histéresis: Libera el estrangulamiento al llegar a 65
+                    if (cpu.Temperature < 65.0) cpu.IsThrottling = false;
                     continue;
                 }
 
-                // LÓGICA TÉRMICA CORREGIDA (Calentamiento Realista Lento)
-                cpu.Temperature += 0.008; // Incremento súper lento por Tick de carga
+                cpu.Temperature += 0.008;
 
-                // Activar Ventiladores Virtuales
                 if (cpu.Temperature > 70.0) cpu.FanSpeedRPM = Math.Min(5000, cpu.FanSpeedRPM + 100);
                 else cpu.FanSpeedRPM = Math.Max(1500, cpu.FanSpeedRPM - 10);
 
-                if (cpu.Temperature >= 85.0) cpu.IsThrottling = true; // Se ahoga a 85
-                if (cpu.Temperature >= 95.0) cpu.Temperature = 95.0; // Max Físico
+                if (cpu.Temperature >= 85.0) cpu.IsThrottling = true;
+                if (cpu.Temperature >= 95.0) cpu.Temperature = 95.0;
 
                 int execPower = cpu.IsThrottling ? Math.Max(1, cpu.ThreadCapacity / 2) : cpu.ThreadCapacity;
 
@@ -891,7 +891,7 @@ namespace SimuladorSO
                 foreach (var alg in algorithms)
                 {
                     onProgressUpdate(0, $"Simulando {alg}...");
-                    var engine = new SimulationEngine(1, 1, true);
+                    var engine = new SimulationEngine(1, 1, 4096, true);
                     engine.SetCpuScheduler(0, alg, 4);
 
                     foreach (var p in masterProcessList)

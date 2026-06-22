@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
@@ -38,7 +39,7 @@ namespace SimuladorSO
             timer.Interval = TimeSpan.FromMilliseconds(250);
             timer.Tick += Timer_Tick;
 
-            PrintConsole("SO Arquitectura Pestañas (Termales Corregidos).");
+            PrintConsole("SO Arquitectura C# Pestañas Restaurada.");
             UpdateDashboard();
         }
 
@@ -82,12 +83,12 @@ namespace SimuladorSO
             }).ToList();
             CpuGrid.ItemsSource = cpuDataList;
 
-            List<string> readyPids = new List<string>();
-            foreach (var sched in engine.Schedulers)
-            {
-                foreach (var p in sched.ReadyQueue) readyPids.Add($"PID {p.PID}");
-            }
-            VisualQueueGrid.ItemsSource = readyPids;
+            // Monitor de 5 Estados del Proceso
+            ListStateNew.ItemsSource = engine.ProcessTable.Where(p => p.State == ProcessState.NEW).Select(p => $"PID {p.PID}").ToList();
+            ListStateReady.ItemsSource = engine.ProcessTable.Where(p => p.State == ProcessState.READY).Select(p => $"PID {p.PID}").ToList();
+            ListStateRunning.ItemsSource = engine.ProcessTable.Where(p => p.State == ProcessState.RUNNING).Select(p => $"PID {p.PID}").ToList();
+            ListStateWaiting.ItemsSource = engine.ProcessTable.Where(p => p.State == ProcessState.WAITING).Select(p => $"PID {p.PID}").ToList();
+            ListStateTerminated.ItemsSource = engine.ProcessTable.Where(p => p.State == ProcessState.TERMINATED || p.State == ProcessState.ZOMBIE).Select(p => $"PID {p.PID}").TakeLast(10).ToList();
 
             List<Process> activeProcs = new List<Process>();
             foreach (var p in engine.ProcessTable) if (p.State != ProcessState.TERMINATED) activeProcs.Add(p);
@@ -118,30 +119,152 @@ namespace SimuladorSO
             MemoryCanvas.Children.Clear();
             if (mmu.PhysicalMemory.Count > 0)
             {
-                double widthFrame = MemoryCanvas.ActualWidth / mmu.PhysicalMemory.Count;
-                double currentX = 0;
-                foreach (var f in mmu.PhysicalMemory)
+                double totalWidth = MemoryCanvas.ActualWidth == 0 ? 800 : MemoryCanvas.ActualWidth;
+                double widthFrame = totalWidth / mmu.PhysicalMemory.Count;
+                int startIdx = 0;
+
+                for (int i = 1; i <= mmu.PhysicalMemory.Count; i++)
                 {
-                    Rectangle r = new Rectangle { Width = widthFrame, Height = MemoryCanvas.ActualHeight, Stroke = Brushes.Black, StrokeThickness = 0.3 };
-                    if (f.IsFree) r.Fill = Brushes.DimGray;
-                    else if (f.PID == 0) r.Fill = Brushes.Crimson;
-                    else r.Fill = GetColorForPID(f.PID.Value);
-                    Canvas.SetLeft(r, currentX); MemoryCanvas.Children.Add(r); currentX += widthFrame;
+                    bool isLast = i == mmu.PhysicalMemory.Count;
+                    if (isLast || mmu.PhysicalMemory[i].PID != mmu.PhysicalMemory[i - 1].PID || mmu.PhysicalMemory[i].IsFree != mmu.PhysicalMemory[i - 1].IsFree)
+                    {
+                        var f = mmu.PhysicalMemory[i - 1];
+                        int count = i - startIdx;
+                        double w = count * widthFrame;
+                        double x = startIdx * widthFrame;
+
+                        Border block = new Border { Width = w, Height = 60, BorderBrush = Brushes.Black, BorderThickness = new Thickness(1), IsHitTestVisible = false };
+                        TextBlock txt = new TextBlock { Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, FontSize = 10, FontWeight = FontWeights.Bold, ClipToBounds = true };
+
+                        if (f.IsFree)
+                        {
+                            block.Background = Brushes.DimGray;
+                            txt.Text = w >= 25 ? "Libre" : "";
+                        }
+                        else if (f.PID == 0)
+                        {
+                            block.Background = Brushes.Crimson;
+                            txt.Text = w >= 15 ? "OS" : "";
+                        }
+                        else
+                        {
+                            block.Background = GetColorForPID(f.PID.Value);
+                            txt.Text = w >= 15 ? $"P{f.PID.Value}" : "";
+                        }
+
+                        if (!string.IsNullOrEmpty(txt.Text)) block.Child = txt;
+
+                        Canvas.SetLeft(block, x);
+                        MemoryCanvas.Children.Add(block);
+                        startIdx = i;
+                    }
                 }
             }
 
             SwapCanvas.Children.Clear();
             if (mmu.SwapSpace.Count > 0)
             {
-                double swpWidth = SwapCanvas.ActualWidth / mmu.SwapSpace.Count;
-                double sX = 0;
-                foreach (var f in mmu.SwapSpace)
+                double totalWidth = SwapCanvas.ActualWidth == 0 ? 800 : SwapCanvas.ActualWidth;
+                double swpWidth = totalWidth / mmu.SwapSpace.Count;
+                int startIdx = 0;
+
+                for (int i = 1; i <= mmu.SwapSpace.Count; i++)
                 {
-                    Rectangle r = new Rectangle { Width = swpWidth, Height = SwapCanvas.ActualHeight, Stroke = Brushes.Black, StrokeThickness = 0.3 };
-                    if (f.IsFree) r.Fill = Brushes.DimGray;
-                    else r.Fill = GetColorForPID(f.PID.Value);
-                    Canvas.SetLeft(r, sX); SwapCanvas.Children.Add(r); sX += swpWidth;
+                    bool isLast = i == mmu.SwapSpace.Count;
+                    if (isLast || mmu.SwapSpace[i].PID != mmu.SwapSpace[i - 1].PID || mmu.SwapSpace[i].IsFree != mmu.SwapSpace[i - 1].IsFree)
+                    {
+                        var f = mmu.SwapSpace[i - 1];
+                        int count = i - startIdx;
+                        double w = count * swpWidth;
+                        double x = startIdx * swpWidth;
+
+                        Border block = new Border { Width = w, Height = 30, BorderBrush = Brushes.Black, BorderThickness = new Thickness(1), IsHitTestVisible = false };
+                        TextBlock txt = new TextBlock { Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, FontSize = 10, FontWeight = FontWeights.Bold, ClipToBounds = true };
+
+                        if (f.IsFree)
+                        {
+                            block.Background = Brushes.DimGray;
+                            txt.Text = w >= 25 ? "Libre" : "";
+                        }
+                        else
+                        {
+                            block.Background = GetColorForPID(f.PID.Value);
+                            txt.Text = w >= 15 ? $"P{f.PID.Value}" : "";
+                        }
+
+                        if (!string.IsNullOrEmpty(txt.Text)) block.Child = txt;
+
+                        Canvas.SetLeft(block, x);
+                        SwapCanvas.Children.Add(block);
+                        startIdx = i;
+                    }
                 }
+            }
+        }
+
+        // ================= SISTEMA DE HOVER DE MEMORIA =================
+        private void MemoryCanvas_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (engine == null || engine.MemoryUnits.Count == 0) return;
+            var mmu = engine.MemoryUnits[0];
+            if (mmu.PhysicalMemory.Count == 0 || MemoryCanvas.ActualWidth <= 0) return;
+
+            double x = e.GetPosition(MemoryCanvas).X;
+            double frameWidth = MemoryCanvas.ActualWidth / mmu.PhysicalMemory.Count;
+            int frameIdx = (int)(x / frameWidth);
+
+            if (frameIdx >= 0 && frameIdx < mmu.PhysicalMemory.Count)
+            {
+                ShowMemoryInfo(mmu.PhysicalMemory[frameIdx], false, mmu.FrameSizeMB);
+            }
+        }
+
+        private void SwapCanvas_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (engine == null || engine.MemoryUnits.Count == 0) return;
+            var mmu = engine.MemoryUnits[0];
+            if (mmu.SwapSpace.Count == 0 || SwapCanvas.ActualWidth <= 0) return;
+
+            double x = e.GetPosition(SwapCanvas).X;
+            double frameWidth = SwapCanvas.ActualWidth / mmu.SwapSpace.Count;
+            int frameIdx = (int)(x / frameWidth);
+
+            if (frameIdx >= 0 && frameIdx < mmu.SwapSpace.Count)
+            {
+                ShowMemoryInfo(mmu.SwapSpace[frameIdx], true, mmu.FrameSizeMB);
+            }
+        }
+
+        private void ClearMemoryInfo(object sender, MouseEventArgs e)
+        {
+            LblHoverInfo.Text = "Pase el cursor sobre la RAM o SWAP a la izquierda para ver los detalles aquí...";
+        }
+
+        private void ShowMemoryInfo(Frame f, bool isSwap, int frameSizeMB)
+        {
+            if (f.IsFree)
+            {
+                LblHoverInfo.Text = $"{(isSwap ? "⬛ SWAP Libre" : "🟩 RAM Libre")}\nEste espacio de memoria de {frameSizeMB}MB está listo para ser asignado.";
+                return;
+            }
+            if (f.PID == 0)
+            {
+                LblHoverInfo.Text = $"🟥 KERNEL OS (PID 0)\nBloque de memoria protegida por el sistema operativo.";
+                return;
+            }
+
+            Process p = engine.ProcessTable.FirstOrDefault(px => px.PID == f.PID.Value);
+            if (p != null)
+            {
+                LblHoverInfo.Text = $"{(isSwap ? "💽 [DESALOJADO A SWAP]" : "🖥️ [EN RAM]")} PID: {p.PID} - {p.Name}\n" +
+                                    $"➤ Estado: {p.State} | Prio: {p.Priority}\n" +
+                                    $"➤ Memoria Total de la App: {p.SizeMB} MB\n" +
+                                    $"➤ Ejecución: {p.RemainingTicks} ticks restantes\n" +
+                                    $"➤ Permiso de este marco: {(f.IsReadOnly ? "Solo Lectura" : "Lectura y Escritura")}";
+            }
+            else
+            {
+                LblHoverInfo.Text = $"PID {f.PID.Value} (Proceso Terminado/Zombi)\nMarco {frameSizeMB}MB pendiente de limpieza.";
             }
         }
 
@@ -169,6 +292,38 @@ namespace SimuladorSO
             else { timer.Start(); BtnToggle.Content = "⏸ PAUSAR KERNEL"; BtnToggle.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F44336")); }
         }
 
+        private void BtnApplyConfig_Click(object sender, RoutedEventArgs e)
+        {
+            if (TxtConfigCpus != null && int.TryParse(TxtConfigCpus.Text, out int cpus) && int.TryParse(TxtConfigThreads.Text, out int threads) && int.TryParse(TxtConfigRam.Text, out int ram))
+            {
+                cpus = Math.Max(1, Math.Min(16, cpus));
+                threads = Math.Max(1, Math.Min(8, threads));
+                ram = Math.Max(512, Math.Min(32768, ram));
+
+                TxtConfigCpus.Text = cpus.ToString();
+                TxtConfigThreads.Text = threads.ToString();
+                TxtConfigRam.Text = ram.ToString();
+
+                timer.Stop();
+                engine = new SimulationEngine(cpus, threads, ram);
+                TxtConsoleOutput.Text = "";
+                PrintConsole($"[SISTEMA] Reinicio Hardware: {cpus} Cores, {threads} Hilos/Core, {ram}MB RAM total.");
+
+                BtnToggle.Content = "⏸ PAUSAR KERNEL";
+                BtnToggle.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F44336"));
+                timer.Start();
+
+                UpdateDashboard();
+                UpdateMemoryTab();
+
+                if (LblConfigStatus != null)
+                {
+                    LblConfigStatus.Text = "¡Hardware aplicado y sistema reiniciado con éxito!";
+                    LblConfigStatus.Foreground = Brushes.SeaGreen;
+                }
+            }
+        }
+
         private void BtnCrear_Click(object sender, RoutedEventArgs e)
         {
             if (int.TryParse(TxtMem.Text, out int m) && int.TryParse(TxtTicks.Text, out int t) && int.TryParse(TxtPrio.Text, out int p))
@@ -177,11 +332,18 @@ namespace SimuladorSO
             }
         }
 
+        // FUGA ALEATORIA AÑADIDA
         private void BtnLlenarRam_Click(object sender, RoutedEventArgs e)
         {
             Random rnd = new Random();
-            for (int i = 0; i < 30; i++) engine.InjectManualProcess(128, 500, 5);
-            PrintConsole($"[ALERTA] Fuga inyectada. RAM se saturará, se usará SWAP y el OOM Killer actuará.");
+            for (int i = 0; i < 30; i++)
+            {
+                int memAleatoria = rnd.Next(32, 512); // Ahora inyecta procesos de distintos tamaños
+                int ticksAleatorios = rnd.Next(50, 800);
+                int prioAleatoria = rnd.Next(1, 10);
+                engine.InjectManualProcess(memAleatoria, ticksAleatorios, prioAleatoria);
+            }
+            PrintConsole($"[ALERTA] 30 Procesos aleatorios inyectados de golpe. RAM se saturará en instantes.");
         }
 
         private void BtnAuto_Click(object sender, RoutedEventArgs e)
@@ -210,7 +372,19 @@ namespace SimuladorSO
             }
         }
 
-        // ================= BENCHMARK CON RESUMEN DINÁMICO AÑADIDO =================
+        // QUANTUM DINÁMICO AÑADIDO
+        private void BtnApplyQuantum_Click(object sender, RoutedEventArgs e)
+        {
+            if (int.TryParse(TxtQuantum.Text, out int q) && q > 0)
+            {
+                foreach (var sched in engine.Schedulers)
+                {
+                    if (sched is RR_Scheduler rr) rr.Quantum = q;
+                }
+                PrintConsole($"> Quantum de Round Robin actualizado a {q} ticks.");
+            }
+        }
+
         private async void BtnRunBenchmark_Click(object sender, RoutedEventArgs e)
         {
             if (int.TryParse(TxtNumN.Text, out int n))
@@ -218,7 +392,6 @@ namespace SimuladorSO
                 BtnRunBenchmark.IsEnabled = false;
                 ListBenchmarkLive.Items.Clear();
 
-                // Reiniciar visuales de resumen
                 LblFastest.Text = "⚡ Más Rápido (Ticks Totales): Calculando...";
                 LblSlowest.Text = "🐢 Más Lento (Ticks Totales): Calculando...";
                 LblPredictable.Text = "🎯 Más Predecible (Varianza Baja): Calculando...";
@@ -250,7 +423,6 @@ namespace SimuladorSO
                             ListBenchmarkLive.ScrollIntoView(ListBenchmarkLive.Items[ListBenchmarkLive.Items.Count - 1]);
                             BtnRunBenchmark.IsEnabled = true;
 
-                            // LOGICA NUEVA AÑADIDA: Cálculo del Resumen
                             if (resultados.Count > 0)
                             {
                                 var fastest = resultados.OrderBy(r => r.TicksTotales).First();
@@ -283,7 +455,11 @@ namespace SimuladorSO
             else if (txt.Contains("FCFS")) p = "FCFS";
             else if (txt.Contains("SJF")) p = "SJF";
 
-            foreach (var c in engine.CPUs) engine.SetCpuScheduler(c.Id, p, 4);
+            // Toma el valor actual de la cajita del Quantum si es RR
+            int currentQuantum = 4;
+            if (TxtQuantum != null && int.TryParse(TxtQuantum.Text, out int q) && q > 0) currentQuantum = q;
+
+            foreach (var c in engine.CPUs) engine.SetCpuScheduler(c.Id, p, currentQuantum);
             PrintConsole($"> Schedulers globales = {p}.");
         }
 
