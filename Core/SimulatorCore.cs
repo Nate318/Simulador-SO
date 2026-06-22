@@ -834,7 +834,7 @@ namespace SimuladorSO
                 IsBooting = false;
             }
         }
-
+        
         // Configura dinámicamente el algoritmo de planificación en un núcleo físico determinado.
         public void SetCpuScheduler(int cpuId, string algName, int quantum = 4)
         {
