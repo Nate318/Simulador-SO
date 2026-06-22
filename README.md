@@ -1,12 +1,12 @@
-# 🖥️ Simulador So
+# Simulador So
 
 Simulador So es una herramienta académica avanzada desarrollada en C# y WPF que simula, visualiza y evalúa el comportamiento interno de un Sistema Operativo moderno a nivel de Kernel.
 
 Diseñado para demostrar conceptos complejos de arquitectura de computadoras, planificación de procesos y gestión de memoria de una manera visual, interactiva e inmersiva.
 
-# ✨ Características Principales
+# Características Principales
 
-## 🧠 1. Gestión de Memoria (MMU) Avanzada
+## 1. Gestión de Memoria (MMU) Avanzada
 
 ### Paginación Visual en Vivo
 Observa cómo se asignan los marcos de memoria (Frames) en la RAM física mediante bloques de colores neón únicos por cada proceso (PID).
@@ -23,7 +23,7 @@ Capacidad para mapear direcciones virtuales de dos procesos distintos al mismo m
 ### Hardware TLB
 Simulación y visualización de la caché Translation Lookaside Buffer.
 
-## ⚙️ 2. Planificación de CPU Multi-Núcleo
+## 2. Planificación de CPU Multi-Núcleo
 
 Simulación de 4 CPUs simétricos trabajando en paralelo.
 
@@ -41,7 +41,7 @@ Balanceo de carga automático. Si un CPU queda ocioso, robará procesos de las c
 ### Thermal Throttling & Active Cooling
 Los procesadores simulan temperatura (hasta 95°C). Si se sobrecalientan por carga sostenida, su velocidad de ejecución se "estrangula" a la mitad, activando ventiladores dinámicos para enfriarse.
 
-## 📊 3. Engine de Benchmark (Comparativa Científica)
+## 3. Engine de Benchmark (Comparativa Científica)
 
 Entorno aislado para evaluar el rendimiento de los planificadores.
 
@@ -56,7 +56,7 @@ Inyecta una carga de $N$ procesos idénticos (controlados por semilla) a través
 ### Veredicto Dinámico
 Análisis automático que indica el algoritmo más rápido y el más estable tras cada prueba.
 
-# 🚀 Cómo Empezar (Instalación)
+# Cómo Empezar (Instalación)
 
 ## Prerrequisitos
 
@@ -89,7 +89,7 @@ F5
 
 o el botón **Iniciar**.
 
-# 🎮 Guía de Uso
+# Guía de Uso
 
 La interfaz está dividida en 3 columnas principales y navegada mediante Pestañas (Tabs).
 
@@ -118,7 +118,7 @@ Crea procesos con Memoria (MB), Duración (Ticks) y Prioridad específicas.
 ### Syscalls (Operaciones de Kernel)
 Utiliza los botones rápidos para hacer Fork(), enviar señales SIGKILL, o mapear Memoria Compartida (Shared Mem) introduciendo los PIDs objetivo.
 
-# 💡 Comandos Útiles
+# Comandos Útiles
 
 ### Llenar RAM (Forzar SWAP)
 Usa el botón "Llenar RAM (Forzar SWAP)" para inyectar repentinamente múltiples procesos pesados y ver en acción el Thrashing, el uso del disco y el OOM Killer.
@@ -126,7 +126,7 @@ Usa el botón "Llenar RAM (Forzar SWAP)" para inyectar repentinamente múltiples
 ### Auto-Spawn
 Enciende el "Auto-Spawn" para simular un servidor recibiendo solicitudes (procesos) de forma aleatoria en segundo plano.
 
-# 🛠️ Arquitectura y Tecnologías
+# Arquitectura y Tecnologías
 
 ## Backend/Kernel
 C# Puro orientado a objetos. Diseñado sin bloqueos (non-blocking) utilizando tics de reloj emulados por DispatcherTimer.
