@@ -1278,7 +1278,7 @@ namespace SimuladorSO
                     int totalToFinish = numProcesses;
                     int finished = 0;
 
-                    // Avanza la simulación del kernel hasta que todo el lote termine
+                    // Avanza la simulación del kernel hasta que todo en el lote termine
                     while (finished < totalToFinish)
                     {
                         engine.Tick();
